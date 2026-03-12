@@ -4,16 +4,19 @@ from scheduler.modules.gcal import GCal
 from scheduler.modules.extractor import Extractor
 from scheduler.modules.predictor import Predictor
 from scheduler.modules.models import Schedule, TimeSlot
+from scheduler import config
 
 
 class AutoSchedulerAgent:
     def __init__(self):
+        cfg = config.load()["agent"]
+        self.duration_minutes = cfg["duration_minutes"]
         self.gcal = GCal()
         self.gcal.authenticate()
         self.extractor = Extractor()
         self.predictor = None  # initialized after loading past schedules
 
-    def run(self, conversation_input: str, duration_minutes: int = 60) -> List[TimeSlot]:
+    def run(self, conversation_input: str) -> List[TimeSlot]:
         """
         Full pipeline:
         1. Load existing schedules from Google Calendar.
@@ -39,7 +42,7 @@ class AutoSchedulerAgent:
 
         # Step 5: Find best available slots
         return self.predictor.find_slots(
-            duration_minutes=duration_minutes,
+            duration_minutes=self.duration_minutes,
             existing=past_schedules,
             predicted=predicted,
             extracted=extracted,

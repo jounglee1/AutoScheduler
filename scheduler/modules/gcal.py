@@ -4,9 +4,15 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 from scheduler.modules.models import Schedule
+from scheduler import config
 
 
 class GCal:
+    def __init__(self):
+        cfg = config.load()["gcal"]
+        self.calendar_id = cfg["calendar_id"]
+        self.days_ahead = cfg["days_ahead"]
+
     def authenticate(self):
         """
         Authenticate with Google Workspace CLI (gws).
@@ -14,13 +20,13 @@ class GCal:
         """
         subprocess.run(["gws", "auth", "login"], check=True)
 
-    def load(self, calendar_id: str = "primary", days_ahead: int = 30) -> List[Schedule]:
+    def load(self) -> List[Schedule]:
         """Load upcoming schedules from Google Calendar via gws CLI."""
         now = datetime.now(timezone.utc)
-        time_max = now + timedelta(days=days_ahead)
+        time_max = now + timedelta(days=self.days_ahead)
 
         params = {
-            "calendarId": calendar_id,
+            "calendarId": self.calendar_id,
             "timeMin": now.isoformat(),
             "timeMax": time_max.isoformat(),
             "singleEvents": True,
@@ -36,7 +42,7 @@ class GCal:
         events = json.loads(result.stdout).get("items", [])
         return [self._parse(event) for event in events]
 
-    def upload(self, schedule: Schedule, calendar_id: str = "primary") -> str:
+    def upload(self, schedule: Schedule) -> str:
         """Upload a schedule to Google Calendar via gws CLI. Returns created event ID."""
         event = {
             "summary": schedule.title,
@@ -48,7 +54,7 @@ class GCal:
 
         result = subprocess.run(
             ["gws", "calendar", "events", "create",
-             "--params", json.dumps({"calendarId": calendar_id}),
+             "--params", json.dumps({"calendarId": self.calendar_id}),
              "--json", json.dumps(event)],
             capture_output=True, text=True, check=True,
         )

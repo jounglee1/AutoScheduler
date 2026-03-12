@@ -1,0 +1,13 @@
+gcal:
+  calendar_id: primary
+  days_ahead: 30
+
+extractor:
+  model: gpt-5-nano-2025-08-07
+
+predictor:
+  days_ahead: 30
+  search_days: 7
+
+agent:
+  duration_minutes: 60

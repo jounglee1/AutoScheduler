@@ -1,6 +1,7 @@
 from typing import List
 
 from scheduler.modules.models import Schedule, TimeSlot
+from scheduler import config
 
 
 class Predictor:
@@ -8,8 +9,11 @@ class Predictor:
         """
         :param past_schedules: Historical schedules loaded from Google Calendar.
         """
+        cfg = config.load()["predictor"]
         self.past_schedules = past_schedules
         self.patterns: dict = {}
+        self.days_ahead = cfg["days_ahead"]
+        self.search_days = cfg["search_days"]
 
     def detect_pattern(self) -> dict:
         """
@@ -20,13 +24,13 @@ class Predictor:
         #       identify most common interval as the cycle (daily/weekly/monthly)
         raise NotImplementedError
 
-    def predict(self, days_ahead: int = 30) -> List[Schedule]:
+    def predict(self) -> List[Schedule]:
         """
         Project detected patterns into the future.
         :param days_ahead: How many days ahead to predict.
         :return: List of predicted Schedule objects (source="predicted").
         """
-        # TODO: for each pattern, generate future occurrences within days_ahead
+        # TODO: for each pattern, generate future occurrences within self.days_ahead
         raise NotImplementedError
 
     def find_slots(
@@ -35,7 +39,6 @@ class Predictor:
         existing: List[Schedule],
         predicted: List[Schedule],
         extracted: List[Schedule],
-        search_days: int = 7,
     ) -> List[TimeSlot]:
         """
         Find candidate time slots avoiding all conflicts.
@@ -44,7 +47,6 @@ class Predictor:
         :param existing: Schedules loaded from Google Calendar.
         :param predicted: Future schedules predicted from patterns.
         :param extracted: Schedules extracted from conversation.
-        :param search_days: How many days ahead to search.
         :return: Ranked list of TimeSlot candidates (highest score = best fit).
         """
         # TODO: merge all blocked times, scan candidate windows,

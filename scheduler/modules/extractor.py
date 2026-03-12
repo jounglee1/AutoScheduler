@@ -7,6 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from scheduler.modules.models import Schedule
 from scheduler.prompts import EXTRACT_SCHEDULE_PROMPT
+from scheduler import config
 
 
 class _ExtractedSchedule(TypedDict):
@@ -22,7 +23,9 @@ class _ExtractedScheduleList(TypedDict):
 
 
 class Extractor:
-    def __init__(self, model: str = "gpt-4o"):
+    def __init__(self):
+        cfg = config.load()["extractor"]
+        model = cfg["model"]
         self.llm = ChatOpenAI(model=model).with_structured_output(_ExtractedScheduleList)
         self.prompt = ChatPromptTemplate.from_template(EXTRACT_SCHEDULE_PROMPT)
         self.chain = self.prompt | self.llm
