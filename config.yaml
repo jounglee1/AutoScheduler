@@ -1,6 +1,8 @@
 gcal:
   calendar_id: primary
-  days_ahead: 30
+  days_past: 28
+  days_ahead: 28
+  client_OAuth_file_path: .auth/client1.json
 
 extractor:
   model: gpt-5-nano-2025-08-07

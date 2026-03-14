@@ -24,8 +24,9 @@ class AutoSchedulerAgent:
         3. Extract schedules from conversation and upload to Google Calendar.
         4. Find and return candidate time slots avoiding all conflicts.
         """
-        # Step 1: Load past schedules
-        past_schedules: List[Schedule] = self.gcal.load()
+        # Step 1: Load past schedules for prediction, future for conflict avoidance
+        past_schedules: List[Schedule] = self.gcal.load_past()
+        future_schedules: List[Schedule] = self.gcal.load_future()
 
         # Step 2: Detect patterns and predict future schedules
         self.predictor = Predictor(past_schedules)
@@ -43,7 +44,7 @@ class AutoSchedulerAgent:
         # Step 5: Find best available slots
         return self.predictor.find_slots(
             duration_minutes=self.duration_minutes,
-            existing=past_schedules,
+            existing=future_schedules,
             predicted=predicted,
             extracted=extracted,
         )
