@@ -1,6 +1,8 @@
 days_past: 28
 days_ahead: 30
 default_duration_minutes: 300
+valid_hour_start: 6
+valid_hour_end: 24
 
 db:
   path: local.db
@@ -11,6 +13,32 @@ gcal:
 extractor:
   model: gpt-5-nano-2025-08-07
 
+categories:
+  meeting:
+    preferred_time:
+      - [9, 17]
+  meal:
+    preferred_time:
+      - [12, 13]
+      - [18, 20]
+  social:
+    preferred_time:
+      - [10, 12]
+      - [14, 17]
+  coffee:
+    preferred_time:
+      - [9, 12]
+  event:
+    preferred_time:
+      - [18, 22]
+  appointment:
+    preferred_time:
+      - [9, 12]
+  other:
+    preferred_time:
+      - [9, 22]
+
 predictor:
 
 agent:
+  max_slots: 5

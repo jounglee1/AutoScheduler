@@ -13,10 +13,11 @@ from scheduler import config
 
 class _ExtractedSchedule(TypedDict):
     title: str
-    start: str        # ISO 8601: "2024-03-10T14:00:00"
-    end: str          # ISO 8601: "2024-03-10T15:00:00"
+    start: Optional[str]  # ISO 8601 with timezone e.g. "2026-03-10T14:00:00-08:00" — None if time not mentioned
+    end: Optional[str]    # ISO 8601 with timezone e.g. "2026-03-10T15:00:00-08:00" — None if time not mentioned
     description: Optional[str]
     location: Optional[str]
+    category: str         # one of the categories defined in config.yaml, use "other" if unsure
 
 
 class _ExtractedScheduleList(TypedDict):
@@ -25,11 +26,14 @@ class _ExtractedScheduleList(TypedDict):
 
 class Extractor:
     def __init__(self):
-        cfg = config.load()["extractor"]
-        model = cfg["model"]
-        self.default_duration = timedelta(minutes=config.load().get("default_duration_minutes", 300))
+        cfg = config.load()
+        model = cfg["extractor"]["model"]
+        self.default_duration = timedelta(minutes=cfg.get("default_duration_minutes", 300))
+        categories = ", ".join(cfg.get("categories", {}).keys())
         self.llm = ChatOpenAI(model=model).with_structured_output(_ExtractedScheduleList)
-        self.prompt = ChatPromptTemplate.from_template(EXTRACT_SCHEDULE_PROMPT)
+        self.prompt = ChatPromptTemplate.from_template(
+            EXTRACT_SCHEDULE_PROMPT.format(categories=categories, conversation="{conversation}")
+        )
         self.chain = self.prompt | self.llm
 
     def load_from_file(self, file_path: str) -> str:
@@ -46,10 +50,18 @@ class Extractor:
         result: _ExtractedScheduleList = self.chain.invoke({"conversation": conversation})
         schedules = []
         for s in result["schedules"]:
-            start = datetime.fromisoformat(s["start"])
-            end = datetime.fromisoformat(s["end"])
-            if end <= start:
-                end = start + self.default_duration
+            raw_start = s.get("start")
+            raw_end = s.get("end")
+
+            if raw_start:
+                start = datetime.fromisoformat(raw_start)
+                end = datetime.fromisoformat(raw_end) if raw_end else start + self.default_duration
+                if end <= start:
+                    end = start + self.default_duration
+            else:
+                start = None  # uncertain time — find_slots will be called in agent
+                end = None
+
             schedules.append(Schedule(
                 title=s["title"],
                 start=start,
@@ -57,9 +69,11 @@ class Extractor:
                 description=s.get("description"),
                 location=s.get("location"),
                 source="extracted",
+                category=s.get("category", "other"),
             ))
         for s in schedules:
-            db.upsert_schedule(s)
+            if s.start:
+                db.upsert_schedule(s)
         return schedules
 
     def extract_asr(self, asr_output: str) -> List[Schedule]:

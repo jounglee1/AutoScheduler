@@ -6,12 +6,13 @@ from typing import Optional
 @dataclass
 class Schedule:
     title: str
-    start: datetime
-    end: datetime
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
     description: Optional[str] = None
     location: Optional[str] = None
     source: str = "google_calendar"   # "google_calendar" | "extracted" | "predicted"
     status: str = "confirmed"          # "confirmed" | "tentative"
+    category: Optional[str] = None
 
 
 @dataclass
