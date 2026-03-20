@@ -4,13 +4,14 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 from scheduler.modules.models import Schedule
+from scheduler.modules import db
 from scheduler import config
 
 
 class GCal:
     def __init__(self):
-        cfg = config.load()["gcal"]
-        self.calendar_id = cfg["calendar_id"]
+        cfg = config.load()
+        self.calendar_id = cfg["gcal"]["calendar_id"]
         self.days_past = cfg["days_past"]
         self.days_ahead = cfg["days_ahead"]
 
@@ -34,7 +35,10 @@ class GCal:
         events = []
         for line in result.stdout.strip().splitlines():
             events.extend(json.loads(line).get("items", []))
-        return [self._parse(e) for e in events]
+        schedules = [self._parse(e) for e in events]
+        for s in schedules:
+            db.upsert_schedule(s)
+        return schedules
 
     def load_past(self) -> List[Schedule]:
         """Load past schedules for pattern detection and prediction."""
@@ -47,7 +51,8 @@ class GCal:
         return self._fetch(now, now + timedelta(days=self.days_ahead))
 
     def upload(self, schedule: Schedule) -> str:
-        """Upload a schedule to Google Calendar. Returns created event ID."""
+        """Upload a schedule to Google Calendar, sync to local db. Returns created event ID."""
+        db.upsert_schedule(schedule)
         event = {
             "summary": schedule.title,
             "location": schedule.location,

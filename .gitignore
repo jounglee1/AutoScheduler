@@ -19,5 +19,7 @@ build/
 .DS_Store
 
 # Auth credentials
-.auth/
 token.json
+
+# Local db
+local.db

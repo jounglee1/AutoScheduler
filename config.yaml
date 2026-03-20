@@ -1,15 +1,16 @@
+days_past: 28
+days_ahead: 30
+default_duration_minutes: 300
+
+db:
+  path: local.db
+
 gcal:
   calendar_id: primary
-  days_past: 28
-  days_ahead: 28
-  client_OAuth_file_path: .auth/client1.json
 
 extractor:
   model: gpt-5-nano-2025-08-07
 
 predictor:
-  days_ahead: 30
-  search_days: 7
 
 agent:
-  duration_minutes: 60

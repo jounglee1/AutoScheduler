@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from typing_extensions import TypedDict
 
@@ -6,6 +6,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
 from scheduler.modules.models import Schedule
+from scheduler.modules import db
 from scheduler.prompts import EXTRACT_SCHEDULE_PROMPT
 from scheduler import config
 
@@ -26,6 +27,7 @@ class Extractor:
     def __init__(self):
         cfg = config.load()["extractor"]
         model = cfg["model"]
+        self.default_duration = timedelta(minutes=config.load().get("default_duration_minutes", 300))
         self.llm = ChatOpenAI(model=model).with_structured_output(_ExtractedScheduleList)
         self.prompt = ChatPromptTemplate.from_template(EXTRACT_SCHEDULE_PROMPT)
         self.chain = self.prompt | self.llm
@@ -42,17 +44,23 @@ class Extractor:
     def extract_script(self, conversation: str) -> List[Schedule]:
         """Extract schedules from a conversation script via LLM."""
         result: _ExtractedScheduleList = self.chain.invoke({"conversation": conversation})
-        return [
-            Schedule(
+        schedules = []
+        for s in result["schedules"]:
+            start = datetime.fromisoformat(s["start"])
+            end = datetime.fromisoformat(s["end"])
+            if end <= start:
+                end = start + self.default_duration
+            schedules.append(Schedule(
                 title=s["title"],
-                start=datetime.fromisoformat(s["start"]),
-                end=datetime.fromisoformat(s["end"]),
+                start=start,
+                end=end,
                 description=s.get("description"),
                 location=s.get("location"),
                 source="extracted",
-            )
-            for s in result["schedules"]
-        ]
+            ))
+        for s in schedules:
+            db.upsert_schedule(s)
+        return schedules
 
     def extract_asr(self, asr_output: str) -> List[Schedule]:
         """

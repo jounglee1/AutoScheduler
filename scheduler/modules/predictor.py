@@ -1,54 +1,134 @@
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from statistics import median, stdev
 from typing import List
 
 from scheduler.modules.models import Schedule, TimeSlot
+from scheduler.modules import db
 from scheduler import config
 
 
 class Predictor:
     def __init__(self, past_schedules: List[Schedule]):
-        """
-        :param past_schedules: Historical schedules loaded from Google Calendar.
-        """
-        cfg = config.load()["predictor"]
+        cfg = config.load()
         self.past_schedules = past_schedules
         self.patterns: dict = {}
+        self.days_past = cfg["days_past"]
         self.days_ahead = cfg["days_ahead"]
-        self.search_days = cfg["search_days"]
 
-    def detect_pattern(self) -> dict:
+    def detect_pattern(self):
         """
-        Group schedules by title and detect recurrence cycles.
-        Returns a pattern map: { title -> detected interval in days }
+        Group past schedules by title.
+        Only accept a cycle if days_past >= interval * 2 (enough data to confirm recurrence).
+        Requires low variance (stdev < 2 days or 30% of interval).
         """
-        # TODO: group by title, compute intervals between occurrences,
-        #       identify most common interval as the cycle (daily/weekly/monthly)
-        raise NotImplementedError
+        groups: dict = defaultdict(list)
+        for s in self.past_schedules:
+            groups[s.title].append(s)
+
+        for title, schedules in groups.items():
+            if len(schedules) < 2:
+                continue
+
+            schedules.sort(key=lambda s: s.start)
+            intervals = [
+                (schedules[i + 1].start - schedules[i].start).total_seconds() / 86400
+                for i in range(len(schedules) - 1)
+            ]
+
+            med = median(intervals)
+            spread = stdev(intervals) if len(intervals) > 1 else 0
+
+            # reject if variance is too high
+            if spread > max(2.0, med * 0.3):
+                continue
+
+            # reject if the observation window is too short to confirm the cycle
+            if self.days_past < med * 2:
+                continue
+
+            durations = [(s.end - s.start) for s in schedules]
+            avg_duration = sum(durations, timedelta()) / len(durations)
+            last = schedules[-1]
+
+            self.patterns[title] = {
+                "interval_days": med,
+                "duration": avg_duration,
+                "last_start": last.start,
+                "location": last.location,
+                "description": last.description,
+            }
 
     def predict(self) -> List[Schedule]:
         """
-        Project detected patterns into the future.
-        :param days_ahead: How many days ahead to predict.
-        :return: List of predicted Schedule objects (source="predicted").
+        Project each detected pattern forward up to self.days_ahead days.
+        Skips titles that already have predicted slots in the local db (tentative).
+        New predictions are written to the db as tentative slots.
+        Returns predicted Schedule objects with source="predicted".
         """
-        # TODO: for each pattern, generate future occurrences within self.days_ahead
-        raise NotImplementedError
+        predicted = []
+        now = datetime.now(timezone.utc)
+        horizon = now + timedelta(days=self.days_ahead)
 
-    def find_slots(
-        self,
-        duration_minutes: int,
-        existing: List[Schedule],
-        predicted: List[Schedule],
-        extracted: List[Schedule],
-    ) -> List[TimeSlot]:
-        """
-        Find candidate time slots avoiding all conflicts.
+        for title, p in self.patterns.items():
+            if db.has_predicted(title):
+                continue  # already cached — skip re-prediction
 
-        :param duration_minutes: Required duration of the new schedule.
-        :param existing: Schedules loaded from Google Calendar.
-        :param predicted: Future schedules predicted from patterns.
-        :param extracted: Schedules extracted from conversation.
-        :return: Ranked list of TimeSlot candidates (highest score = best fit).
+            interval = timedelta(days=p["interval_days"])
+            next_start = p["last_start"] + interval
+
+            while next_start <= horizon:
+                if next_start >= now:
+                    s = Schedule(
+                        title=title,
+                        start=next_start,
+                        end=next_start + p["duration"],
+                        description=p["description"],
+                        location=p["location"],
+                        source="predicted",
+                        status="tentative",
+                    )
+                    db.upsert_schedule(s)
+                    predicted.append(s)
+                next_start += interval
+
+        return predicted
+
+    def find_slots(self, duration_minutes: int) -> List[TimeSlot]:
         """
-        # TODO: merge all blocked times, scan candidate windows,
-        #       score by preference (e.g. working hours), return ranked slots
-        raise NotImplementedError
+        Scan all hours across self.days_ahead for conflict-free slots.
+        Queries the local db for all occupied slots (confirmed + tentative).
+        Score reflects time-of-day preference — no hours are excluded.
+        """
+        duration = timedelta(minutes=duration_minutes)
+        step = timedelta(minutes=30)
+        now = datetime.now(timezone.utc)
+        end_search = now + timedelta(days=self.days_ahead)
+
+        blocked = db.get_slots(now, end_search)
+
+        slots = []
+        candidate = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
+        while candidate + duration <= end_search:
+            slot_end = candidate + duration
+            conflict = any(s.start < slot_end and s.end > candidate for s in blocked)
+
+            if not conflict:
+                hour = candidate.hour
+                if hour in (10, 14):
+                    score = 1.0
+                elif hour in (9, 11, 13, 15):
+                    score = 0.8
+                elif 8 <= hour <= 18:
+                    score = 0.6
+                elif 7 <= hour <= 21:
+                    score = 0.4
+                else:
+                    score = 0.2
+                slots.append(TimeSlot(start=candidate, end=slot_end, score=score))
+
+            candidate += step
+
+        slots.sort(key=lambda s: -s.score)
+        return slots[:10]

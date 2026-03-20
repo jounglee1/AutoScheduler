@@ -10,7 +10,8 @@ class Schedule:
     end: datetime
     description: Optional[str] = None
     location: Optional[str] = None
-    source: str = "google_calendar"  # "google_calendar" | "extracted"
+    source: str = "google_calendar"   # "google_calendar" | "extracted" | "predicted"
+    status: str = "confirmed"          # "confirmed" | "tentative"
 
 
 @dataclass
