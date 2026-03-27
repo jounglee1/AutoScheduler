@@ -1,14 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from typing_extensions import TypedDict
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
-from scheduler.modules.models import Schedule
-from scheduler.modules import db
-from scheduler.prompts import EXTRACT_SCHEDULE_PROMPT
-from scheduler import config
+from src.modules.models import Schedule
+from src.modules import db
+from src.prompts import EXTRACT_SCHEDULE_PROMPT
+from src import config
 
 
 class _ExtractedSchedule(TypedDict):
@@ -54,8 +54,9 @@ class Extractor:
             raw_end = s.get("end")
 
             if raw_start:
-                start = datetime.fromisoformat(raw_start)
-                end = datetime.fromisoformat(raw_end) if raw_end else start + self.default_duration
+                def _utc(s): dt = datetime.fromisoformat(s); return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                start = _utc(raw_start)
+                end = _utc(raw_end) if raw_end else start + self.default_duration
                 if end <= start:
                     end = start + self.default_duration
             else:
@@ -68,7 +69,7 @@ class Extractor:
                 end=end,
                 description=s.get("description"),
                 location=s.get("location"),
-                source="extracted",
+                status="tentative",
                 category=s.get("category", "other"),
             ))
         for s in schedules:

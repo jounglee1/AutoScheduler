@@ -6,8 +6,8 @@ from typing import Optional
 @dataclass
 class Schedule:
     title: str
-    source: str = "google_calendar"   # "google_calendar" | "extracted" | "predicted"
-    status: str = "confirmed"          # "confirmed" | "tentative"
+    id: str = ""
+    status: str = "confirmed"   # "confirmed" | "predicted" | "tentative"
     start: Optional[datetime] = None
     end: Optional[datetime] = None
     description: Optional[str] = None
@@ -19,4 +19,4 @@ class Schedule:
 class TimeSlot:
     start: datetime
     end: datetime
-    score: float = 0.0  # Higher = better fit
+    score: float = 0.0

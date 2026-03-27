@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoScheduler</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <div>
+      <h1>AutoScheduler</h1>
+      <p style="margin-top:0.5rem">Connect your Google Calendar to get started</p>
+    </div>
+    <a class="google-btn" href="http://localhost:8001/auth/login">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+      Sign in with Google
+    </a>
+  </div>
+</div>
+
+<!-- App Screen -->
+<div id="app-screen">
+  <header>
+    <div>
+      <h1>AutoScheduler</h1>
+      <p>AI-powered scheduling assistant</p>
+    </div>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </header>
+
+  <div class="container">
+
+    <!-- Calendar -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Calendar</h2>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div class="cal-toggles">
+            <button class="cal-toggle active" id="toggle-confirmed" onclick="toggleFilter('confirmed')">Confirmed</button>
+            <button class="cal-toggle active" id="toggle-predicted" onclick="toggleFilter('predicted')">Predicted</button>
+            <button class="cal-toggle active" id="toggle-tentative" onclick="toggleFilter('tentative')">Tentative</button>
+          </div>
+          <button class="btn btn-primary" id="sync-btn" onclick="syncCal()" style="padding:0.4rem 1rem;font-size:0.8rem" title="Sync from Google Calendar">Sync</button>          <div class="cal-nav">
+            <button onclick="changeMonth(-1)">&#8249;</button>
+            <span id="cal-title"></span>
+            <button onclick="changeMonth(1)">&#8250;</button>
+          </div>
+        </div>
+      </div>
+      <div class="cal-grid" id="cal-dow"></div>
+      <div class="cal-grid" id="cal-grid" style="margin-top:2px"></div>
+      <div class="cal-legend">
+        <span><i style="background:#2563eb"></i> Confirmed</span>
+        <span><i style="background:#7c3aed"></i> Predicted</span>
+        <span><i style="background:#f59e0b"></i> Tentative</span>
+      </div>
+    </div>
+
+    <!-- Scheduler -->
+    <div class="card">
+      <h2 style="margin-bottom:1rem">New Schedule Request</h2>
+      <textarea id="conversation"
+        placeholder="Describe your schedule — e.g. 'Team meeting next Monday at 2pm for an hour, and client call on Wednesday at 10.'">
+      </textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="run-btn" onclick="runScheduler()">Analyze Schedule</button>
+      </div>
+    </div>
+
+    <div id="status-msg" style="display:none"></div>
+    <div id="results"></div>
+  </div>
+</div>
+
+<!-- Day Detail Modal -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="js/calendar.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

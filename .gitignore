@@ -1,25 +1,23 @@
-# Dependencies
-node_modules/
-.venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
 
 # Environment
 .env
-.env.local
 
-# Build output
-dist/
-build/
+# Data
+data/local.db
 
-# Logs
-*.log
+# Secrets
+config/client_secret.json
+data/token.json
 
-# OS
-.DS_Store
+# Node
+node_modules/
 
-# Auth credentials
-token.json
-
-# Local db
-local.db
+# IDE
+.vscode/
+.idea/

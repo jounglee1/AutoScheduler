@@ -1,11 +1,11 @@
 from typing import List, Dict, Tuple
 
-from scheduler.modules.gcal import GCal
-from scheduler.modules.extractor import Extractor
-from scheduler.modules.scheduler import Scheduler
-from scheduler.modules.models import Schedule, TimeSlot
-from scheduler.modules import db
-from scheduler import config
+from src.modules.gcal import GCal
+from src.modules.extractor import Extractor
+from src.modules.scheduler import Scheduler
+from src.modules.models import Schedule, TimeSlot
+from src.modules import db
+from src import config
 
 
 class AutoSchedulerAgent:
@@ -15,7 +15,7 @@ class AutoSchedulerAgent:
         db.init()
         self.gcal = GCal()
         self.extractor = Extractor()
-        self.scheduler = None
+        self.scheduler = Scheduler([])
 
     def run(self, conversation_input: str) -> Dict[str, Tuple[Schedule, List[TimeSlot]]]:
         """
@@ -26,11 +26,10 @@ class AutoSchedulerAgent:
         Returns: { title -> (schedule, suggested TimeSlots) }
         """
         # Step 1: Load and sync schedules to local db
-        past_schedules = self.gcal.load_past()
+        self.scheduler.past_schedules = self.gcal.load_past()
         self.gcal.load_future()
 
         # Step 2: Detect patterns and predict
-        self.scheduler = Scheduler(past_schedules)
         self.scheduler.detect_pattern()
         self.scheduler.predict()
 

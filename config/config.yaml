@@ -1,20 +1,21 @@
-days_past: 28
-days_ahead: 30
+days_past: 14
+days_ahead: 14
 default_duration_minutes: 300
 valid_hour_start: 6
 valid_hour_end: 24
 
 db:
-  path: local.db
+  path: data/local.db
 
 gcal:
   calendar_id: primary
+  timezone: Canada/Pacific
 
 extractor:
   model: gpt-5-nano-2025-08-07
 
 categories:
-  meeting:
+  work:
     preferred_time:
       - [9, 17]
   meal:
@@ -23,17 +24,11 @@ categories:
       - [18, 20]
   social:
     preferred_time:
-      - [10, 12]
+      - [10, 11]
       - [14, 17]
-  coffee:
-    preferred_time:
-      - [9, 12]
   event:
     preferred_time:
       - [18, 22]
-  appointment:
-    preferred_time:
-      - [9, 12]
   other:
     preferred_time:
       - [9, 22]

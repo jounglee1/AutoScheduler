@@ -1,0 +1,12 @@
+{
+  "name": "autoscheduler-web",
+  "version": "1.0.0",
+  "description": "AutoScheduler web frontend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node web/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

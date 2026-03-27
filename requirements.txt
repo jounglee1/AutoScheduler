@@ -5,3 +5,7 @@ langchain-core
 python-dotenv
 typing_extensions
 pyyaml
+fastapi
+uvicorn
+google-auth-oauthlib
+google-api-python-client
