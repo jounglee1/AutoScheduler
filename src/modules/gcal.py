@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 from uuid import uuid4
@@ -52,7 +52,6 @@ class GCal:
     def __init__(self):
         cfg = config.load()
         self.calendar_id = cfg["gcal"]["calendar_id"]
-        self.days_past = cfg["days_past"]
         self.days_ahead = cfg["days_ahead"]
 
     def _service(self):
@@ -62,55 +61,35 @@ class GCal:
         """Lazily fetch and cache the calendar's IANA timezone."""
         if not hasattr(self, '_default_tz_cache'):
             result = self._service().calendars().get(calendarId=self.calendar_id).execute()
-            self._default_tz_cache = ZoneInfo(result.get("timeZone", "UTC"))
+            fallback = config.load().get("timezone", "UTC")
+            self._default_tz_cache = ZoneInfo(result.get("timeZone", fallback))
         return self._default_tz_cache
 
-    def _fetch(self, time_min: datetime, time_max: datetime) -> List[Schedule]:
-        result = self._service().events().list(
-            calendarId=self.calendar_id,
-            timeMin=time_min.isoformat(),
-            timeMax=time_max.isoformat(),
-            singleEvents=True,
-            orderBy="startTime",
-        ).execute()
+
+    def sync(self) -> List[Schedule]:
+        """Fetch all events from GCal (all time, paginated), sync to DB."""
         schedules = []
-        for e in result.get("items", []):
-            s = self._parse(e)
-            db.upsert_schedule(s)
-            schedules.append(s)
-        return schedules
-
-    def load_past(self) -> List[Schedule]:
-        now = datetime.now(timezone.utc)
-        return self._fetch(now - timedelta(days=self.days_past), now)
-
-    def load_future(self) -> List[Schedule]:
-        now = datetime.now(timezone.utc)
-        return self._fetch(now, now + timedelta(days=self.days_ahead))
-
-    def sync(self):
-        """Sync GCal → DB: pull events and remove DB entries deleted from GCal."""
-        now = datetime.now(timezone.utc)
-        time_min = now - timedelta(days=self.days_past)
-        time_max = now + timedelta(days=self.days_ahead)
-
-        result = self._service().events().list(
-            calendarId=self.calendar_id,
-            timeMin=time_min.isoformat(),
-            timeMax=time_max.isoformat(),
-            singleEvents=True,
-            orderBy="startTime",
-        ).execute()
-
         keep_ids = set()
-        for e in result.get("items", []):
-            if e.get("eventType", "default") != "default":
-                continue
-            s = self._parse(e)
-            keep_ids.add(s.id)
-            db.upsert_schedule(s)
-
-        db.delete_stale_gcal(time_min, time_max, keep_ids)
+        page_token = None
+        svc = self._service()
+        while True:
+            kwargs = dict(calendarId=self.calendar_id, singleEvents=True,
+                          orderBy="startTime", maxResults=2500)
+            if page_token:
+                kwargs["pageToken"] = page_token
+            result = svc.events().list(**kwargs).execute()
+            for e in result.get("items", []):
+                if e.get("eventType", "default") != "default":
+                    continue
+                s = self._parse(e)
+                keep_ids.add(s.id)
+                db.upsert_schedule(s)
+                schedules.append(s)
+            page_token = result.get("nextPageToken")
+            if not page_token:
+                break
+        db.delete_stale_confirmed(keep_ids)
+        return schedules
 
     def upload(self, schedule: Schedule) -> Schedule:
         schedule.id = make_id()

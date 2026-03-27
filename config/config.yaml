@@ -1,39 +1,38 @@
-days_past: 14
-days_ahead: 14
-default_duration_minutes: 300
-valid_hour_start: 6
-valid_hour_end: 24
-
-db:
-  path: data/local.db
-
-gcal:
-  calendar_id: primary
-  timezone: Canada/Pacific
-
-extractor:
-  model: gpt-5-nano-2025-08-07
-
 categories:
   work:
     preferred_time:
-      - [9, 17]
+    - - 9
+      - 19
   meal:
     preferred_time:
-      - [12, 13]
-      - [18, 20]
+    - - 12
+      - 13
+    - - 18
+      - 20
   social:
     preferred_time:
-      - [10, 11]
-      - [14, 17]
+    - - 10
+      - 11
+    - - 14
+      - 17
   event:
     preferred_time:
-      - [18, 22]
+    - - 16
+      - 24
   other:
     preferred_time:
-      - [9, 22]
-
-predictor:
-
-agent:
-  max_slots: 5
+    - - 9
+      - 22
+days_ahead: 14
+db:
+  path: data/local.db
+default_duration_minutes: 180
+extractor:
+  model: gpt-5-nano-2025-08-07
+gcal:
+  calendar_id: primary
+max_slots: 1
+predictor: null
+timezone: America/Vancouver
+valid_hour_end: 24
+valid_hour_start: 6

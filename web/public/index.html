@@ -73,6 +73,77 @@
 
     <div id="status-msg" style="display:none"></div>
     <div id="results"></div>
+
+    <!-- Settings -->
+    <div class="card" id="settings-card">
+      <div class="card-header" style="cursor:pointer" onclick="toggleSettings()">
+        <h2>Settings</h2>
+        <span id="settings-chevron" style="font-size:1.1rem;color:#94a3b8">&#8250;</span>
+      </div>
+      <div id="settings-body" style="display:none;margin-top:1rem">
+        <div class="settings-grid">
+          <label>Timezone</label>
+          <select id="cfg-timezone">
+            <optgroup label="Americas">
+              <option value="America/New_York">New York (ET)</option>
+              <option value="America/Chicago">Chicago (CT)</option>
+              <option value="America/Denver">Denver (MT)</option>
+              <option value="America/Los_Angeles">Los Angeles (PT)</option>
+              <option value="America/Vancouver">Vancouver (PT)</option>
+              <option value="America/Toronto">Toronto (ET)</option>
+              <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+            </optgroup>
+            <optgroup label="Europe">
+              <option value="Europe/London">London (GMT/BST)</option>
+              <option value="Europe/Paris">Paris (CET)</option>
+              <option value="Europe/Berlin">Berlin (CET)</option>
+              <option value="Europe/Moscow">Moscow (MSK)</option>
+            </optgroup>
+            <optgroup label="Asia / Pacific">
+              <option value="Asia/Dubai">Dubai (GST)</option>
+              <option value="Asia/Kolkata">Mumbai/Delhi (IST)</option>
+              <option value="Asia/Bangkok">Bangkok (ICT)</option>
+              <option value="Asia/Singapore">Singapore (SGT)</option>
+              <option value="Asia/Shanghai">Shanghai/Beijing (CST)</option>
+              <option value="Asia/Tokyo">Tokyo (JST)</option>
+              <option value="Asia/Seoul">Seoul (KST)</option>
+              <option value="Australia/Sydney">Sydney (AEST)</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="UTC">UTC</option>
+            </optgroup>
+          </select>
+          <label>Prediction Range (days)</label>
+          <input type="number" id="cfg-days_ahead" min="0" />
+          <label>Max Slots to Schedule</label>
+          <input type="number" id="cfg-max_slots" min="1" />
+          <label>Default Duration</label>
+          <div class="dur-inputs">
+            <input type="number" id="cfg-dur-h" min="0" placeholder="0" />
+            <span class="dur-unit">h</span>
+            <input type="number" id="cfg-dur-m" min="0" max="59" placeholder="0" />
+            <span class="dur-unit">m</span>
+          </div>
+        </div>
+
+        <h3 style="margin-top:1.25rem;margin-bottom:0.5rem;font-size:0.88rem;color:#475569">Active Hours</h3>
+        <div class="hour-blocks" id="cfg-active-hours"></div>
+
+        <h3 style="margin-top:1.25rem;margin-bottom:0.5rem;font-size:0.88rem;color:#475569">Category Hours</h3>
+        <table class="settings-timetable" id="cfg-categories-table">
+          <thead>
+            <tr><th>Category</th><th>Active Hours (click to toggle)</th></tr>
+          </thead>
+          <tbody id="cfg-categories-body"></tbody>
+        </table>
+
+        <div class="btn-row" style="margin-top:1.25rem;gap:0.5rem">
+          <button class="btn" style="background:#f1f5f9;color:#475569" onclick="cancelSettings()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+        </div>
+        <div id="settings-msg" style="display:none;margin-top:0.5rem;font-size:0.82rem"></div>
+      </div>
+    </div>
   </div>
 </div>
 

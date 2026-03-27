@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List, Dict, Tuple
 
 from src.modules.gcal import GCal
@@ -25,9 +26,10 @@ class AutoSchedulerAgent:
 
         Returns: { title -> (schedule, suggested TimeSlots) }
         """
-        # Step 1: Load and sync schedules to local db
-        self.scheduler.past_schedules = self.gcal.load_past()
-        self.gcal.load_future()
+        # Step 1: Sync all schedules from GCal to local db
+        now = datetime.now(timezone.utc)
+        all_schedules = self.gcal.sync()
+        self.scheduler.past_schedules = [s for s in all_schedules if s.start and s.start < now]
 
         # Step 2: Detect patterns and predict
         self.scheduler.detect_pattern()
@@ -56,7 +58,7 @@ class AutoSchedulerAgent:
                 for s in db.get_slots(schedule.start, schedule.end)
             ):
                 original = TimeSlot(start=schedule.start, end=schedule.end, score=1.0)
-                slots = [original] + slots
+                slots = [original] + slots[:-1]
 
             results[schedule.title] = (schedule, slots)
 

@@ -14,7 +14,6 @@ class Scheduler:
         cfg = config.load()
         self.past_schedules = past_schedules
         self.patterns: dict = {}
-        self.days_past = cfg["days_past"]
         self.days_ahead = cfg["days_ahead"]
         self.valid_hour_start = cfg["valid_hour_start"]
         self.valid_hour_end = cfg["valid_hour_end"]
@@ -40,7 +39,8 @@ class Scheduler:
 
             if spread > max(2.0, med * 0.3):
                 continue
-            if self.days_past < med * 2:
+            span = (schedules[-1].start - schedules[0].start).days
+            if span < med * 2:
                 continue
 
             durations = [(s.end - s.start) for s in schedules]
@@ -134,6 +134,6 @@ class Scheduler:
 
             candidate += step
 
-        max_slots = cfg.get("agent", {}).get("max_slots", 5)
+        max_slots = cfg.get("max_slots", 1)
         slots.sort(key=lambda s: -s.score)
         return slots[:max_slots]

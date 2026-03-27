@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from src.modules import db
 from src.modules.models import Schedule
 from src import config
+from typing import Any
 
 router = APIRouter()
 
@@ -45,6 +46,19 @@ def events_remove(req: RemoveEventRequest):
     return {"ok": True}
 
 
+@router.get("/config")
+def get_config():
+    return config.load()
+
+
+@router.post("/config")
+def set_config(body: dict[str, Any]):
+    cfg = config.load()
+    cfg.update(body)
+    config.save(cfg)
+    return {"ok": True}
+
+
 @router.post("/db/clear")
 def db_clear():
     db.clear_all()
@@ -60,11 +74,10 @@ def sync():
 
 @router.post("/predict")
 def predict(request: Request):
-    cfg = config.load()
     now = datetime.now(timezone.utc)
     scheduler = request.app.state.agent.scheduler
     scheduler.past_schedules = [
-        s for s in db.get_slots(now - timedelta(days=cfg["days_past"]), now)
+        s for s in db.get_slots(datetime.min.replace(tzinfo=timezone.utc), now)
         if s.status == "confirmed"
     ]
     db.clear_predicted()

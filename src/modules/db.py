@@ -104,13 +104,11 @@ def clear_tentative():
         con.execute("DELETE FROM schedules WHERE status='tentative'")
 
 
-def delete_stale_gcal(time_min: datetime, time_max: datetime, keep_ids: set):
-    """Remove confirmed entries in range no longer present in GCal."""
+def delete_stale_confirmed(keep_ids: set):
+    """Remove all confirmed entries not present in keep_ids."""
     with _conn() as con:
         rows = con.execute(
-            "SELECT id FROM schedules WHERE status='confirmed' "
-            "AND start < ? AND end > ?",
-            (time_max.isoformat(), time_min.isoformat())
+            "SELECT id FROM schedules WHERE status='confirmed'"
         ).fetchall()
         for r in rows:
             if r["id"] not in keep_ids:

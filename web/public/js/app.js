@@ -120,6 +120,134 @@ function showPending(data) {
   `;
 }
 
+// ── Settings ───────────────────────────────────────────────────────────────
+
+let _settingsSnapshot = null;
+
+function _hoursFromWindows(windows) {
+  const active = new Set();
+  for (const [s, e] of windows) {
+    for (let h = s; h < e; h++) active.add(h);
+  }
+  return active;
+}
+
+function _windowsFromHours(activeHours) {
+  const sorted = [...activeHours].sort((a, b) => a - b);
+  if (!sorted.length) return [];
+  const windows = [];
+  let start = sorted[0], prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) { prev = sorted[i]; }
+    else { windows.push([start, prev + 1]); start = prev = sorted[i]; }
+  }
+  windows.push([start, prev + 1]);
+  return windows;
+}
+
+function _makeBlocks(containerId, activeSet) {
+  let html = '';
+  for (let h = 0; h < 24; h++) {
+    html += `<span class="hour-block${activeSet.has(h) ? ' active' : ''}" data-h="${h}" onclick="toggleHour(this)">${h}</span>`;
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
+
+function _applySettings(cfg) {
+  document.getElementById('cfg-timezone').value   = cfg.timezone ?? 'UTC';
+  document.getElementById('cfg-days_ahead').value = cfg.days_ahead ?? '';
+  document.getElementById('cfg-max_slots').value  = cfg.max_slots ?? '';
+  const totalMin = cfg.default_duration_minutes ?? 0;
+  document.getElementById('cfg-dur-h').value = Math.floor(totalMin / 60);
+  document.getElementById('cfg-dur-m').value = totalMin % 60;
+
+  const activeStart = cfg.valid_hour_start ?? 0;
+  const activeEnd   = cfg.valid_hour_end   ?? 24;
+  const activeHrs = new Set();
+  for (let h = activeStart; h < activeEnd; h++) activeHrs.add(h);
+  _makeBlocks('cfg-active-hours', activeHrs);
+
+  const tbody = document.getElementById('cfg-categories-body');
+  tbody.innerHTML = '';
+  for (const [name, val] of Object.entries(cfg.categories ?? {})) {
+    const active = _hoursFromWindows(val.preferred_time ?? []);
+    let blocks = '';
+    for (let h = 0; h < 24; h++) {
+      blocks += `<span class="hour-block${active.has(h) ? ' active' : ''}" data-h="${h}" onclick="toggleHour(this)">${h}</span>`;
+    }
+    const tr = document.createElement('tr');
+    tr.dataset.cat = name;
+    tr.innerHTML = `<td class="cat-name">${esc(name)}</td><td><div class="hour-blocks">${blocks}</div></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function _foldSettings() {
+  document.getElementById('settings-body').style.display = 'none';
+  document.getElementById('settings-chevron').innerHTML = '&#9660;';
+}
+
+function toggleHour(el) {
+  el.classList.toggle('active');
+}
+
+async function loadSettings() {
+  const cfg = await fetch(`${API}/config`).then(r => r.json());
+  _settingsSnapshot = cfg;
+  _applySettings(cfg);
+}
+
+async function saveSettings() {
+  const cfg = JSON.parse(JSON.stringify(_settingsSnapshot));
+  cfg.timezone   = document.getElementById('cfg-timezone').value;
+  cfg.days_ahead = parseInt(document.getElementById('cfg-days_ahead').value);
+  cfg.max_slots  = parseInt(document.getElementById('cfg-max_slots').value);
+  cfg.default_duration_minutes = (parseInt(document.getElementById('cfg-dur-h').value) || 0) * 60
+                                + (parseInt(document.getElementById('cfg-dur-m').value) || 0);
+
+  const hrs = [...document.querySelectorAll('#cfg-active-hours .hour-block.active')].map(b => parseInt(b.dataset.h));
+  if (hrs.length) {
+    cfg.valid_hour_start = Math.min(...hrs);
+    cfg.valid_hour_end   = Math.max(...hrs) + 1;
+  }
+
+  if (!cfg.categories) cfg.categories = {};
+  document.querySelectorAll('#cfg-categories-body tr').forEach(tr => {
+    const activeHours = [...tr.querySelectorAll('.hour-block.active')].map(b => parseInt(b.dataset.h));
+    cfg.categories[tr.dataset.cat] = { preferred_time: _windowsFromHours(activeHours) };
+  });
+
+  const res = await fetch(`${API}/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg),
+  });
+  if (res.ok) {
+    _settingsSnapshot = cfg;
+    _foldSettings();
+  } else {
+    const msg = document.getElementById('settings-msg');
+    msg.textContent = 'Failed to save.';
+    msg.style.color = '#dc2626';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  }
+}
+
+function cancelSettings() {
+  if (_settingsSnapshot) _applySettings(_settingsSnapshot);
+  _foldSettings();
+}
+
+function toggleSettings() {
+  const body = document.getElementById('settings-body');
+  const chevron = document.getElementById('settings-chevron');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  chevron.innerHTML = open ? '&#9650;' : '&#9660;';
+  if (open) loadSettings();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   boot();
   document.getElementById('conversation').addEventListener('keydown', e => {
