@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from statistics import median, stdev
 from typing import List, Optional
 
 from src.modules.models import Schedule, TimeSlot
@@ -24,31 +23,46 @@ class Scheduler:
             groups[s.title].append(s)
 
         self.patterns = {}
+        now = datetime.now(timezone.utc)
+        recency_window = timedelta(days=365)
+
         for title, schedules in groups.items():
-            if len(schedules) < 2:
+            schedules.sort(key=lambda s: s.start)
+
+            # Only look at occurrences within the recency window
+            recent = [s for s in schedules if s.start >= now - recency_window]
+            if len(recent) < 2:
                 continue
 
-            schedules.sort(key=lambda s: s.start)
             intervals = [
-                (schedules[i + 1].start - schedules[i].start).total_seconds() / 86400
-                for i in range(len(schedules) - 1)
+                (recent[i + 1].start - recent[i].start).total_seconds() / 86400
+                for i in range(len(recent) - 1)
             ]
 
-            med = median(intervals)
-            spread = stdev(intervals) if len(intervals) > 1 else 0
+            # Median interval — robust against outliers
+            sorted_iv = sorted(intervals)
+            mid = len(sorted_iv) // 2
+            if len(sorted_iv) % 2 == 0:
+                median_iv = (sorted_iv[mid - 1] + sorted_iv[mid]) / 2
+            else:
+                median_iv = sorted_iv[mid]
 
-            if spread > max(2.0, med * 0.3):
-                continue
-            span = (schedules[-1].start - schedules[0].start).days
-            if span < med * 2:
+            # Every interval must be within ±35% of the median
+            tolerance = median_iv * 0.35
+            if any(abs(iv - median_iv) > tolerance for iv in intervals):
                 continue
 
-            durations = [(s.end - s.start) for s in schedules]
+            # Last occurrence must be within 4 intervals (not a dead schedule)
+            last = recent[-1]
+            age = (now - last.start).days
+            if age > median_iv * 3:
+                continue
+
+            durations = [(s.end - s.start) for s in recent]
             avg_duration = sum(durations, timedelta()) / len(durations)
-            last = schedules[-1]
 
             self.patterns[title] = {
-                "interval_days": med,
+                "interval_days": median_iv,
                 "duration": avg_duration,
                 "last_start": last.start,
                 "location": last.location,

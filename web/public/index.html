@@ -53,10 +53,16 @@
       </div>
       <div class="cal-grid" id="cal-dow"></div>
       <div class="cal-grid" id="cal-grid" style="margin-top:2px"></div>
-      <div class="cal-legend">
-        <span><i style="background:#2563eb"></i> Confirmed</span>
-        <span><i style="background:#7c3aed"></i> Predicted</span>
-        <span><i style="background:#f59e0b"></i> Tentative</span>
+      <div class="cal-legend" style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:1rem">
+          <span><i style="background:#2563eb"></i> Confirmed</span>
+          <span><i style="background:#7c3aed"></i> Predicted</span>
+          <span><i style="background:#f59e0b"></i> Tentative</span>
+        </div>
+        <div style="display:flex;gap:0.25rem">
+          <button class="btn" id="clear-predicted-btn" onclick="clearPredicted()" style="padding:0.3rem 0.85rem;font-size:0.8rem;background:#f1f5f9;color:#7c3aed" title="Clear all predicted schedules">Clear Predicted</button>
+          <button class="btn" id="clear-tentative-btn" onclick="clearTentative()" style="padding:0.3rem 0.85rem;font-size:0.8rem;background:#f1f5f9;color:#b45309" title="Clear all tentative schedules">Clear Tentative</button>
+        </div>
       </div>
     </div>
 

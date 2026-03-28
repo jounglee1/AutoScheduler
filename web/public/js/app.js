@@ -69,6 +69,8 @@ async function runScheduler() {
   setStatus('Extracting schedules and finding available slots…', 'loading');
   document.getElementById('results').innerHTML = '';
   calCandidates = [];
+  hiddenTitles = new Set();
+  highlightedTitle = null;
   renderCalGrid();
 
   try {
@@ -109,11 +111,12 @@ function showPending(data) {
   container.innerHTML = `
     <div class="card">
       <h2 style="margin-bottom:0.75rem">Pending Confirmation</h2>
-      <p style="font-size:0.83rem;color:#64748b;margin-bottom:0.75rem">Candidate slots are highlighted on the calendar. Click one to confirm.</p>
+      <p style="font-size:0.83rem;color:#64748b;margin-bottom:0.75rem">Click a schedule to highlight its slots on the calendar, then click a slot to confirm.</p>
       ${titles.map(t => `
-        <div class="pending-item" id="pending-${CSS.escape(t)}">
+        <div class="pending-item" id="pending-${CSS.escape(t)}" data-title="${esc(t)}" onclick="highlightTitle(this.dataset.title)">
+          <input type="checkbox" class="pending-check" checked onclick="event.stopPropagation()" onchange="setTitleVisible(this.closest('.pending-item').dataset.title, this.checked)">
           <span class="pending-dot"></span>
-          <span>${esc(t)}</span>
+          <span class="pending-title">${esc(t)}</span>
         </div>
       `).join('')}
     </div>

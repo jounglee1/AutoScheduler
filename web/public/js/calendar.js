@@ -4,6 +4,8 @@ const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 let calYear, calMonth, calEvents = [], calCandidates = [];
 const calFilters = { confirmed: true, predicted: true, tentative: true };
+let hiddenTitles = new Set();
+let highlightedTitle = null;
 
 function toggleFilter(type) {
   calFilters[type] = !calFilters[type];
@@ -13,10 +15,25 @@ function toggleFilter(type) {
 
 function visibleEvents() {
   return calEvents.filter(e => {
+    if (hiddenTitles.has(e.title)) return false;
     if (e.status === 'predicted') return calFilters.predicted;
     if (e.status === 'tentative') return calFilters.tentative;
     return calFilters.confirmed;
   });
+}
+
+function setTitleVisible(title, visible) {
+  if (visible) hiddenTitles.delete(title);
+  else hiddenTitles.add(title);
+  renderCalGrid();
+}
+
+function highlightTitle(title) {
+  highlightedTitle = highlightedTitle === title ? null : title;
+  document.querySelectorAll('.pending-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.title === highlightedTitle);
+  });
+  renderCalGrid();
 }
 
 // ── Candidates (in-memory map for slotIndex lookup) ────────────────────────
@@ -66,11 +83,12 @@ function renderCalGrid() {
     const visible = dayEvents.slice(0, 2);
     const extra   = dayEvents.length - visible.length;
     const evHtml  = visible.map(e => {
-      const cls = e.status === 'predicted' || e.status === 'tentative' ? 'tentative' : '';
+      const cls = e.status === 'predicted' ? 'predicted' : e.status === 'tentative' ? 'tentative' : '';
       return `<div class="cal-event ${cls}" title="${esc(e.title)}">${esc(e.title)}</div>`;
     }).join('') + (extra > 0 ? `<div class="cal-more">+${extra} more</div>` : '');
 
-    cells += `<div class="cal-day${isToday ? ' today' : ''}" onclick="openModal(${d})">
+    const isHighlighted = highlightedTitle && dayEvents.some(e => e.title === highlightedTitle);
+    cells += `<div class="cal-day${isToday ? ' today' : ''}${isHighlighted ? ' highlighted' : ''}" onclick="openModal(${d})">
       <div class="cal-day-num">${d}</div>${evHtml}
     </div>`;
   }
@@ -100,6 +118,33 @@ async function syncCal() {
   }
 }
 
+async function clearTentative() {
+  const btn = document.getElementById('clear-tentative-btn');
+  btn.disabled = true;
+  try {
+    await fetch(`${API}/events/clear-tentative`, { method: 'POST' });
+    await loadEvents();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function clearPredicted() {
+  const btn = document.getElementById('clear-predicted-btn');
+  btn.disabled = true;
+  try {
+    await fetch(`${API}/events/clear-predicted`, { method: 'POST' });
+    await loadEvents();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function selectTentative(i) {
+  document.querySelectorAll('.modal-event.tentative').forEach(el => el.classList.remove('selected'));
+  document.getElementById(`mev-${i}`).classList.add('selected');
+}
+
 // ── Day modal ──────────────────────────────────────────────────────────────
 
 let _modalEvents = [];
@@ -127,6 +172,15 @@ function openModal(day) {
     ? _modalEvents.map((e, i) => {
         const actions = e.status === 'tentative'
           ? `<button class="btn btn-success modal-confirm-schedule-btn" onclick="confirmCandidateFromModal(${i})">Confirm</button>`
+          : e.status === 'predicted'
+          ? `<div class="modal-remove-wrap" style="display:flex;gap:0.4rem;align-items:center">
+               <button class="btn btn-success modal-confirm-schedule-btn" onclick="confirmPredicted(${i})" title="Add to Google Calendar">Confirm</button>
+               <button class="modal-remove-btn" onclick="askRemove(${i})" title="Remove">&#10005;</button>
+               <span class="modal-confirm-row" id="confirm-${i}" style="display:none">
+                 <button class="modal-confirm-btn" onclick="removeEvent(${i})" title="Confirm delete">&#10003;</button>
+                 <button class="modal-cancel-btn" onclick="cancelRemove(${i})" title="Cancel">&#8592;</button>
+               </span>
+             </div>`
           : `<div class="modal-remove-wrap">
                <button class="modal-remove-btn" onclick="askRemove(${i})" title="Remove">&#10005;</button>
                <span class="modal-confirm-row" id="confirm-${i}" style="display:none">
@@ -134,8 +188,10 @@ function openModal(day) {
                  <button class="modal-cancel-btn" onclick="cancelRemove(${i})" title="Cancel">&#8592;</button>
                </span>
              </div>`;
+        const tentativeCls = e.status === 'tentative' ? ' tentative' : '';
+        const tentativeClick = e.status === 'tentative' ? `onclick="selectTentative(${i})"` : '';
         return `
-          <div class="modal-event" id="mev-${i}">
+          <div class="modal-event${tentativeCls}" id="mev-${i}" ${tentativeClick}>
             <div class="modal-dot" style="background:${dotColor(e)}"></div>
             <div class="modal-event-info">
               <div class="modal-event-title">${esc(e.title)}</div>
@@ -148,6 +204,19 @@ function openModal(day) {
     : `<div class="modal-empty">No events</div>`;
 
   document.getElementById('modal-backdrop').classList.add('open');
+}
+
+async function confirmPredicted(i) {
+  const e = _modalEvents[i];
+  const res = await fetch(`${API}/events/confirm-predicted`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: e.id }),
+  });
+  const data = await res.json();
+  if (data.error) { setStatus(`Error: ${data.error}`, 'error'); return; }
+  document.getElementById('modal-backdrop').classList.remove('open');
+  loadEvents();
 }
 
 async function confirmCandidateFromModal(i) {

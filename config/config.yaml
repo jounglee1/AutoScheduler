@@ -31,7 +31,7 @@ extractor:
   model: gpt-5-nano-2025-08-07
 gcal:
   calendar_id: primary
-max_slots: 1
+max_slots: 5
 predictor: null
 timezone: America/Vancouver
 valid_hour_end: 24

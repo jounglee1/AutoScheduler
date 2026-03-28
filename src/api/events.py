@@ -59,6 +59,31 @@ def set_config(body: dict[str, Any]):
     return {"ok": True}
 
 
+@router.post("/events/confirm-predicted")
+def confirm_predicted(req: RemoveEventRequest):
+    schedule = db.get_by_id(req.id)
+    if not schedule:
+        return {"error": "Event not found"}
+    db.delete_event(schedule.id)
+    schedule.status = "confirmed"
+    from src.modules.gcal import GCal
+    GCal().upload(schedule)
+    db.upsert_schedule(schedule)
+    return {"ok": True}
+
+
+@router.post("/events/clear-tentative")
+def clear_tentative():
+    db.clear_tentative()
+    return {"ok": True}
+
+
+@router.post("/events/clear-predicted")
+def clear_predicted():
+    db.clear_predicted()
+    return {"ok": True}
+
+
 @router.post("/db/clear")
 def db_clear():
     db.clear_all()
