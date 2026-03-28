@@ -15,6 +15,7 @@ For each event, provide:
 Slot suggestion rules:
 - If a specific time is mentioned → use it as the first slot, then suggest {max_slots_minus_1} alternatives on different nearby days at the same time of day
 - If no specific time is mentioned → suggest {max_slots} options using the preferred hours for the event's category:
+- If a duration is not mentioned, use {default_duration} minutes as the event duration
 {category_rules}
 - Spread all slots across DIFFERENT days — not consecutive hours on the same day
 - Keep all slots within the next {days_ahead} days from today

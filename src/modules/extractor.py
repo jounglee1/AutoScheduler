@@ -69,6 +69,7 @@ class Extractor:
                 max_slots=self.max_slots,
                 max_slots_minus_1=max(1, self.max_slots - 1),
                 days_ahead=self.days_ahead,
+                default_duration=int(self.default_duration.total_seconds() // 60),
                 conversation="{conversation}",
                 today="{today}",
             )
