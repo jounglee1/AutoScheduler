@@ -72,6 +72,24 @@ def confirm_predicted(req: RemoveEventRequest):
     return {"ok": True}
 
 
+@router.post("/events/confirm-tentative")
+def confirm_tentative(req: RemoveEventRequest, request: Request):
+    schedule = db.get_by_id(req.id)
+    if not schedule:
+        return {"error": "Event not found"}
+    title = schedule.title
+    # Remove all tentative slots for this title (including the chosen one)
+    db.delete_candidates_for_title(title)
+    # Upload and save as confirmed
+    schedule.status = "confirmed"
+    from src.modules.gcal import GCal
+    GCal().upload(schedule)
+    db.upsert_schedule(schedule)
+    # Remove from in-memory last_results if present
+    request.app.state.last_results.pop(title, None)
+    return {"ok": True}
+
+
 @router.post("/events/clear-tentative")
 def clear_tentative():
     db.clear_tentative()

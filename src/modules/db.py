@@ -85,11 +85,20 @@ def get_slots(start: datetime, end: datetime) -> List[Schedule]:
     return [_row_to_schedule(r) for r in rows]
 
 
-def has_predicted(title: str) -> bool:
+def is_predicted(title: str) -> bool:
     with _conn() as con:
         row = con.execute(
             "SELECT id FROM schedules WHERE title=? AND status='predicted' LIMIT 1",
             (title,)
+        ).fetchone()
+    return row is not None
+
+
+def is_confirmed(title: str, after: datetime) -> bool:
+    with _conn() as con:
+        row = con.execute(
+            "SELECT id FROM schedules WHERE title=? AND status='confirmed' AND start > ? LIMIT 1",
+            (title, after.isoformat())
         ).fetchone()
     return row is not None
 

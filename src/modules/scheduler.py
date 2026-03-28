@@ -75,7 +75,7 @@ class Scheduler:
         horizon = now + timedelta(days=self.days_ahead)
 
         for title, p in self.patterns.items():
-            if db.has_predicted(title):
+            if db.is_predicted(title) or db.is_confirmed(title, now):
                 continue
 
             interval = timedelta(days=p["interval_days"])

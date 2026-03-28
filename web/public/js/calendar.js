@@ -213,23 +213,17 @@ async function confirmPredicted(i) {
 
 async function confirmCandidateFromModal(i) {
   const e = _modalEvents[i];
-  const c = calCandidates.find(c => c.title === e.title && c.start === e.start);
-  if (!c) { setStatus('Session expired — please re-analyze.', 'error'); return; }
-  await confirmCandidate(e.title, c.slotIndex);
-}
-
-async function confirmCandidate(title, slotIndex) {
-  const res = await fetch(`${API}/confirm`, {
+  const res = await fetch(`${API}/events/confirm-tentative`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, slot_index: slotIndex }),
+    body: JSON.stringify({ id: e.id }),
   });
   const data = await res.json();
   if (data.error) { setStatus(`Error: ${data.error}`, 'error'); return; }
   document.getElementById('modal-backdrop').classList.remove('open');
-  clearCandidates(title);
-  const el = document.getElementById(`pending-${CSS.escape(title)}`);
-  if (el) el.remove();
+  clearCandidates(e.title);
+  const grp = document.getElementById(`pending-${CSS.escape(e.title)}`)?.closest('.pending-group');
+  if (grp) grp.remove();
   if (!calCandidates.length) setStatus('', '');
   loadEvents();
 }
