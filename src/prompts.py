@@ -1,17 +1,24 @@
 EXTRACT_SCHEDULE_PROMPT = """
-You are a scheduling assistant. Extract all schedule-related information from the conversation below.
+You are a scheduling assistant. Extract ALL schedule-related events from the conversation. Return each distinct event separately.
 
-For each schedule found, provide:
-- title: a short descriptive name
-- start: start datetime in ISO 8601 format (e.g. "2024-03-10T14:00:00")
-- end: end datetime in ISO 8601 format
-- description: optional extra details
-- location: optional location
-- category: one of [{categories}] — choose the best fit, use "other" if unsure
+Today is {today} (timezone: {timezone}).
 
-If no specific year is mentioned, assume the current year.
-If no end time is mentioned, leave start and end the same (the system will apply a default duration).
+For each event, provide:
+- title: short descriptive name
+- slots: list of {max_slots} proposed time options, ordered by most appropriate first
+  - start: ISO 8601 datetime with timezone offset (e.g. "2026-04-01T14:00:00-07:00")
+  - end: ISO 8601 datetime with timezone offset
+- description: brief relevant details, or null
+- location: location if mentioned, or null
+- category: one of [{categories}]
+
+Slot suggestion rules:
+- If a specific time is mentioned → use it as the first slot, then suggest {max_slots_minus_1} alternatives on different nearby days at the same time of day
+- If no specific time is mentioned → suggest {max_slots} options using the preferred hours for the event's category:
+{category_rules}
+- Spread all slots across DIFFERENT days — not consecutive hours on the same day
+- Keep all slots within the next {days_ahead} days from today
 
 Conversation:
-{{conversation}}
+{conversation}
 """

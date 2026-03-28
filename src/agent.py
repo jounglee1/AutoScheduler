@@ -37,28 +37,21 @@ class AutoSchedulerAgent:
 
         # Step 3: Extract schedules from conversation
         conversation = self.extractor.load_from_string(conversation_input)
-        extracted: List[Schedule] = self.extractor.extract_script(conversation)
+        extracted = self.extractor.extract_script(conversation)
 
         results: Dict[str, Tuple[Schedule, List[TimeSlot]]] = {}
 
-        for schedule in extracted:
-            duration = (
-                int((schedule.end - schedule.start).total_seconds() / 60)
-                if schedule.start else self.duration_minutes
-            )
+        for schedule, proposed_times in extracted:
+            duration = self.duration_minutes
+            if proposed_times:
+                s, e = proposed_times[0]
+                duration = int((e - s).total_seconds() / 60) or duration
 
             slots = self.scheduler.find_slots(
                 duration_minutes=duration,
                 category=schedule.category,
+                candidates=proposed_times if proposed_times else None,
             )
-
-            # If the original time has no conflict, prepend it as the top option
-            if schedule.start and not any(
-                s.start < schedule.end and s.end > schedule.start
-                for s in db.get_slots(schedule.start, schedule.end)
-            ):
-                original = TimeSlot(start=schedule.start, end=schedule.end, score=1.0)
-                slots = [original] + slots[:-1]
 
             results[schedule.title] = (schedule, slots)
 

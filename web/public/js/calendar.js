@@ -4,7 +4,6 @@ const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 let calYear, calMonth, calEvents = [], calCandidates = [];
 const calFilters = { confirmed: true, predicted: true, tentative: true };
-let hiddenTitles = new Set();
 let highlightedTitle = null;
 
 function toggleFilter(type) {
@@ -15,17 +14,10 @@ function toggleFilter(type) {
 
 function visibleEvents() {
   return calEvents.filter(e => {
-    if (hiddenTitles.has(e.title)) return false;
     if (e.status === 'predicted') return calFilters.predicted;
     if (e.status === 'tentative') return calFilters.tentative;
     return calFilters.confirmed;
   });
-}
-
-function setTitleVisible(title, visible) {
-  if (visible) hiddenTitles.delete(title);
-  else hiddenTitles.add(title);
-  renderCalGrid();
 }
 
 function highlightTitle(title) {

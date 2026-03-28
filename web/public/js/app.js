@@ -69,7 +69,6 @@ async function runScheduler() {
   setStatus('Extracting schedules and finding available slots…', 'loading');
   document.getElementById('results').innerHTML = '';
   calCandidates = [];
-  hiddenTitles = new Set();
   highlightedTitle = null;
   renderCalGrid();
 
@@ -105,20 +104,47 @@ async function runScheduler() {
   }
 }
 
+function fmtSlot(start, end) {
+  const s = new Date(start), e = new Date(end);
+  const date  = s.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  const tStart = s.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+  const tEnd   = e.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+  return `${date},  ${tStart} – ${tEnd}`;
+}
+
+function navigateToSlot(isoStart) {
+  const d = new Date(isoStart);
+  calYear  = d.getFullYear();
+  calMonth = d.getMonth() + 1;
+  renderCalHeader();
+  loadEvents();
+}
+
 function showPending(data) {
   const container = document.getElementById('results');
   const titles = Object.keys(data);
   container.innerHTML = `
     <div class="card">
       <h2 style="margin-bottom:0.75rem">Pending Confirmation</h2>
-      <p style="font-size:0.83rem;color:#64748b;margin-bottom:0.75rem">Click a schedule to highlight its slots on the calendar, then click a slot to confirm.</p>
-      ${titles.map(t => `
-        <div class="pending-item" id="pending-${CSS.escape(t)}" data-title="${esc(t)}" onclick="highlightTitle(this.dataset.title)">
-          <input type="checkbox" class="pending-check" checked onclick="event.stopPropagation()" onchange="setTitleVisible(this.closest('.pending-item').dataset.title, this.checked)">
-          <span class="pending-dot"></span>
-          <span class="pending-title">${esc(t)}</span>
-        </div>
-      `).join('')}
+      <p style="font-size:0.83rem;color:#64748b;margin-bottom:0.75rem">Click a title to highlight its slots on the calendar. Click a slot row to navigate to that date.</p>
+      ${titles.map(t => {
+        const slots = data[t].slots;
+        return `
+          <div class="pending-group">
+            <div class="pending-item" id="pending-${CSS.escape(t)}" data-title="${esc(t)}" onclick="highlightTitle(this.dataset.title)">
+              <span class="pending-dot"></span>
+              <span class="pending-title">${esc(t)}</span>
+            </div>
+            <div class="pending-slots">
+              ${slots.map(s => `
+                <div class="pending-slot" onclick="navigateToSlot('${s.start}')">
+                  ${fmtSlot(s.start, s.end)}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
 }

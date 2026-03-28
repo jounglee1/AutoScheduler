@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from src.modules.models import Schedule, TimeSlot
 from src.modules import db
@@ -98,19 +98,48 @@ class Scheduler:
 
         return predicted
 
-    def find_slots(self, duration_minutes: int, category: Optional[str] = None) -> List[TimeSlot]:
+    def find_slots(
+        self,
+        duration_minutes: int,
+        category: Optional[str] = None,
+        candidates: Optional[List[Tuple[datetime, datetime]]] = None,
+    ) -> List[TimeSlot]:
         cfg = config.load()
         preferred_windows = []
         if category and category in cfg.get("categories", {}):
             preferred_windows = cfg["categories"][category].get("preferred_time", [])
 
-        duration = timedelta(minutes=duration_minutes)
-        step = timedelta(minutes=30)
         now = datetime.now(timezone.utc)
         end_search = now + timedelta(days=self.days_ahead)
-        blocked = db.get_slots(now, end_search)
+        max_slots = cfg.get("max_slots", 1)
 
-        slots = []
+        # Confirmed and predicted events both block slots
+        blocked = [
+            s for s in db.get_slots(now, end_search)
+            if s.status in ("confirmed", "predicted")
+        ]
+
+        def _conflicts(start: datetime, end: datetime) -> bool:
+            return any(s.start < end and s.end > start for s in blocked)
+
+        # ── Candidate-based path: filter LLM suggestions ──────────────────────
+        if candidates:
+            valid: List[TimeSlot] = []
+            seen_days: set = set()
+            for start, end in candidates:
+                if not _conflicts(start, end):
+                    day = start.date()
+                    if day not in seen_days:
+                        seen_days.add(day)
+                        valid.append(TimeSlot(start=start, end=end, score=1.0))
+            if valid:
+                return valid[:max_slots]
+            # All LLM suggestions conflicted — fall through to scan
+
+        # ── Scan-based fallback ───────────────────────────────────────────────
+        duration = timedelta(minutes=duration_minutes)
+        step = timedelta(minutes=30)
+        best_per_day: dict = {}
         candidate = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
 
         while candidate + duration <= end_search:
@@ -123,8 +152,7 @@ class Scheduler:
                 candidate += step
                 continue
 
-            conflict = any(s.start < slot_end and s.end > candidate for s in blocked)
-            if not conflict:
+            if not _conflicts(candidate, slot_end):
                 if preferred_windows:
                     min_dist = min(abs(hour - w_start) for w_start, _ in preferred_windows)
                     in_window = any(w_start <= hour < w_end for w_start, w_end in preferred_windows)
@@ -144,10 +172,12 @@ class Scheduler:
                         score = 0.6
                     else:
                         score = 0.3
-                slots.append(TimeSlot(start=candidate, end=slot_end, score=score))
+                day = candidate.date()
+                ts = TimeSlot(start=candidate, end=slot_end, score=score)
+                if day not in best_per_day or score > best_per_day[day].score:
+                    best_per_day[day] = ts
 
             candidate += step
 
-        max_slots = cfg.get("max_slots", 1)
-        slots.sort(key=lambda s: -s.score)
-        return slots[:max_slots]
+        day_slots = sorted(best_per_day.values(), key=lambda s: -s.score)
+        return day_slots[:max_slots]
